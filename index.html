@@ -104,30 +104,70 @@ function start(id){
         document.getElementById("status").innerText = "接続完了";
     });
 
-    channel.subscribe((msg)=>{
+   channel.subscribe((msg)=>{
 
-        console.log("受信:", msg);
+    if(Notification.permission !== "granted") return;
 
-        if(Notification.permission !== "granted") return;
+    // -----------------------
+    // 👥 フレンド追加通知
+    // -----------------------
+    if(msg.name === "friend-add"){
 
-        if(msg.name === "friend-add"){
-            new Notification("フレンド通知", {
-                body:"フレンド申請があります"
+        const name =
+            msg.data?.name ||
+            msg.data?.username ||
+            "誰か";
+
+        navigator.serviceWorker.ready.then(reg=>{
+            reg.showNotification("Nexis 通知", {
+                body: `${name} があなたと友だちになりました。`,
+                icon: "icon.png",
+                badge: "icon.png",
+                tag: "friend-add",
+                data: {
+                    url: "https://ayatocraft.github.io/NexisChat/"
+                }
             });
-        }
+        });
 
-        if(msg.name === "message"){
-            const text = msg.data?.text ||
-                         msg.data?.message ||
-                         "新しいメッセージ";
+    }
 
-            new Notification("新着メッセージ", {
-                body:text
+    // -----------------------
+    // 💬 新着メッセージ通知
+    // -----------------------
+    if(msg.name === "message"){
+
+        const name =
+            msg.data?.name ||
+            msg.data?.username ||
+            "誰か";
+
+        const text =
+            msg.data?.text ||
+            msg.data?.message ||
+            "";
+
+        navigator.serviceWorker.ready.then(reg=>{
+            reg.showNotification("新着メッセージ", {
+                body: `${name}: ${text}`,
+                icon: "icon.png",
+                badge: "icon.png",
+                tag: "message",
+                data: {
+                    url: "https://ayatocraft.github.io/NexisChat/"
+                },
+                actions: [
+                    {
+                        action: "open",
+                        title: "Chatを開く"
+                    }
+                ]
             });
-        }
+        });
 
-    });
-}
+    }
+
+});
 </script>
 
 </body>
