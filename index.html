@@ -19,13 +19,20 @@ body{
     text-align:center;
     padding-top:60px;
 }
+input{
+    padding:10px;
+    font-size:16px;
+    border-radius:8px;
+    border:none;
+}
 button{
-    padding:12px 20px;
+    padding:10px 20px;
     font-size:16px;
     border:none;
     border-radius:8px;
     background:#2979ff;
     color:white;
+    margin-top:10px;
 }
 .status{
     margin-top:20px;
@@ -36,50 +43,91 @@ button{
 <body>
 
 <h2>Nexis Notifier</h2>
-<button onclick="enableNotifications()">通知を有効化</button>
-<div class="status" id="status">初期化中...</div>
+
+<div id="setup">
+    <p>IDを入力してください</p>
+    <input id="idInput" placeholder="あなたのID">
+    <br>
+    <button onclick="saveId()">保存</button>
+</div>
+
+<div id="main" style="display:none;">
+    <p id="monitorText"></p>
+    <button onclick="enableNotifications()">通知を有効化</button>
+    <div class="status" id="status">接続中...</div>
+</div>
 
 <script>
 const ABLY_KEY = "JW3Hvw.fw1o0A:-zV3VatQkBUx-hVmtwFGE6Bwbv_wG4kIoz7LHOKNawY";
-const CHANNEL_NAME = "nexis-chat";
-const username = localStorage.getItem("username") || "guest";
 
-// Service Worker登録
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
+const params = new URLSearchParams(location.search);
+const urlId = params.get("id");
+const savedId = localStorage.getItem("nexis_id");
+
+if(urlId){
+    document.getElementById("idInput").value = urlId;
 }
 
-// 通知許可
-async function enableNotifications() {
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-        alert("通知が有効になりました！");
+if(savedId){
+    start(savedId);
+}
+
+function saveId(){
+    const id = document.getElementById("idInput").value.trim();
+    if(!id) return alert("IDを入力してください");
+
+    localStorage.setItem("nexis_id", id);
+    location.reload();
+}
+
+async function enableNotifications(){
+    const perm = await Notification.requestPermission();
+    alert("通知状態: " + perm);
+}
+
+function start(id){
+
+    document.getElementById("setup").style.display = "none";
+    document.getElementById("main").style.display = "block";
+    document.getElementById("monitorText").innerText =
+        "監視中: inbox-" + id;
+
+    // Service Worker登録
+    if('serviceWorker' in navigator){
+        navigator.serviceWorker.register("sw.js");
     }
-}
 
-// Ably接続
-const ably = new Ably.Realtime(ABLY_KEY);
-const channel = ably.channels.get(CHANNEL_NAME);
+    const ably = new Ably.Realtime(ABLY_KEY);
+    const channel = ably.channels.get("inbox-" + id);
 
-ably.connection.on("connected", () => {
-    document.getElementById("status").innerText = "接続完了。監視中...";
-});
+    ably.connection.on("connected", ()=>{
+        document.getElementById("status").innerText = "接続完了";
+    });
 
-channel.subscribe((msg) => {
+    channel.subscribe((msg)=>{
 
-    if (!msg.data) return;
-    if (msg.data.user === username) return;
+        console.log("受信:", msg);
 
-    if (Notification.permission === "granted") {
-        navigator.serviceWorker.ready.then(reg => {
-            reg.showNotification(msg.data.user + " からメッセージ", {
-                body: msg.data.text,
-                icon: "icon.png",
-                badge: "icon.png"
+        if(Notification.permission !== "granted") return;
+
+        if(msg.name === "friend-add"){
+            new Notification("フレンド通知", {
+                body:"フレンド申請があります"
             });
-        });
-    }
-});
+        }
+
+        if(msg.name === "message"){
+            const text = msg.data?.text ||
+                         msg.data?.message ||
+                         "新しいメッセージ";
+
+            new Notification("新着メッセージ", {
+                body:text
+            });
+        }
+
+    });
+}
 </script>
 
 </body>
