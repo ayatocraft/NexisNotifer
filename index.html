@@ -168,6 +168,30 @@ function start(id){
     }
 
 });
+document.addEventListener("DOMContentLoaded", ()=>{
+
+    const idInput = document.getElementById("idInput");
+
+    if(!idInput) return;
+
+    // ① まずURLパラメータ確認
+    const params = new URLSearchParams(location.search);
+    const urlId = params.get("id");
+
+    if(urlId){
+        idInput.value = urlId;
+        localStorage.setItem("nexis_id", urlId);
+        return;
+    }
+
+    // ② localStorage確認
+    const savedId = localStorage.getItem("nexis_id");
+
+    if(savedId){
+        idInput.value = savedId;
+    }
+
+});
 </script>
 
 </body>
